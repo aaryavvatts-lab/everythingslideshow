@@ -95,7 +95,7 @@ references/
   academic.md       conference, defense, lab meeting structures
 scripts/
   check_skills.sh install_companions.sh outline_lint.py
-  render_deck.mjs render_static.py pptx_qc.py contact_sheet.py
+  render_deck.mjs to_pdf.mjs render_static.py pptx_qc.py contact_sheet.py
 evals/prompts.md    sample requests to try
 ```
 

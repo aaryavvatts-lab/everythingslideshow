@@ -92,6 +92,17 @@ Slide level
 - [ ] Notes present, in order, match the slide, include timing.
 - [ ] Animations: reveal order matches speech; nothing waits on the presenter.
 
+## No real renderer (no LibreOffice, no browser, QuickLook failed)
+
+`render_static.py` then draws an approximate preview (text boxes, solid fills, solid backgrounds, tables, pictures). It cannot show charts, gradients, picture backgrounds, shadows or real fonts, so a blank area may be a drawing gap. Do this instead of guessing:
+
+- [ ] Read the preview for overlap, crowding, off-slide shapes and empty slides only.
+- [ ] Charts, gradients and picture backgrounds: verify by reading the XML or build code (series and categories present, fill defined, picture linked) and name them in the report as "not visually checked".
+- [ ] Tables: check row and column sizes against the text length in the code; `pptx_qc.py` prints a NOTE because it does not measure them.
+- [ ] Fonts: list the fonts used and say whether they ship with PowerPoint or the OS.
+- [ ] Ask the user to open the file once on their machine and glance at slides listed by number.
+- [ ] No PDF copy; say why.
+
 ## Round 3 rubric
 
 Score 1 to 5 per dimension. 5 = would stand next to a professionally made deck. 3 = acceptable but visibly average. 1 = fails the purpose. Anything under 4 gets fixed.

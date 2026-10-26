@@ -10,6 +10,7 @@ whether the deck looks like one family, where the density spikes, and which slid
 Needs Pillow (pip install pillow).
 """
 import os
+import re
 import sys
 
 try:
@@ -34,7 +35,10 @@ def main(argv):
         sys.exit(__doc__)
     if len(paths) == 1 and os.path.isdir(paths[0]):
         d = paths[0]
-        paths = sorted(os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith(".png") and f.startswith("s"))
+        # only slide images (s01.png, s02.png ...), never a previous sheet or the output file itself
+        paths = sorted(os.path.join(d, f) for f in os.listdir(d) if re.match(r"^s\d+\.png$", f, re.I))
+    out_abs = os.path.abspath(out)
+    paths = [p for p in paths if os.path.abspath(p) != out_abs]
     imgs = [Image.open(p).convert("RGB") for p in paths]
     if not imgs:
         sys.exit("contact_sheet: no images")

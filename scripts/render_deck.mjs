@@ -118,7 +118,9 @@ const probe = () => {
   }
   const de = document.documentElement;
   const scrollsX = Math.max(de.scrollWidth, document.body.scrollWidth) > vw + 2;
-  return { smallestFont: smallest === 999 ? null : Math.round(smallest * 10) / 10, words, issues, scrollsX };
+  const visuals = [...document.querySelectorAll('img,svg,canvas,video')].filter(visible).length;
+  const stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
+  return { smallestFont: smallest === 999 ? null : Math.round(smallest * 10) / 10, words, visuals, stillRunning, issues, scrollsX };
 };
 
 const browser = await pw.chromium.launch({ headless: true, executablePath: exe || undefined });
@@ -154,6 +156,12 @@ for (let i = 1; i <= count; i++) {
     }
     await page.waitForTimeout(wait);
   }
+  // Staggered reveals and CSS transitions are animations; wait for them so we do not photograph a half-drawn slide.
+  await page.evaluate(() => Promise.race([
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => null))),
+    new Promise((r) => setTimeout(r, 4000)),
+  ]));
+  await page.waitForTimeout(150);
   const png = path.join(outDir, `s${String(i).padStart(2, '0')}.png`);
   const buf = await page.screenshot({ path: png });
   const hash = crypto.createHash('md5').update(buf).digest('hex');
@@ -174,14 +182,29 @@ for (const s of slides) {
     fails.push(`from slide ${s.n}: the page scrolls sideways (something, maybe on a hidden slide, is wider than the stage); arrow keys will scroll the page`);
   if (s.smallestFont !== null && s.smallestFont < minFont) warns.push(`slide ${s.n}: smallest font ${s.smallestFont}px (< ${minFont}px at ${W}px wide)`);
   if (s.words > 90) warns.push(`slide ${s.n}: ${s.words} words, probably too dense for a spoken deck`);
+  if (s.words < 2 && s.visuals === 0) warns.push(`slide ${s.n}: looks empty (almost no text and no image, svg or canvas). A reveal may not have played; try a larger --wait`);
+  if (s.stillRunning > 0) warns.push(`slide ${s.n}: ${s.stillRunning} animation(s) still running at capture; the picture may be mid-motion (endless loops are normal)`);
   if (s.sameAsPrevious) warns.push(`slide ${s.n}: looks identical to the previous slide (navigation key may not be working)`);
 }
 consoleErrors.forEach((e) => fails.push('console error: ' + e.slice(0, 160)));
 failed.forEach((u) => fails.push('request failed: ' + u));
-const report = { file: path.resolve(file), size: [W, H], slides: slides.length, fails, warns, perSlide: slides };
+// Collapse identical messages that differ only by slide number ("slide 2: x", "slide 3: x" -> "slides 2, 3: x").
+const collapse = (list) => {
+  const groups = new Map();
+  for (const m of list) {
+    const mt = m.match(/^slide (\d+): (.*)$/);
+    if (!mt) { groups.set(m, null); continue; }
+    if (!groups.has(mt[2])) groups.set(mt[2], []);
+    groups.get(mt[2])?.push(mt[1]);
+  }
+  return [...groups].map(([msg, ns]) => (ns === null ? msg : ns.length === 1 ? `slide ${ns[0]}: ${msg}` : `slides ${ns.join(', ')}: ${msg}`));
+};
+const failsOut = collapse(fails); const warnsOut = collapse(warns);
+const report = { file: path.resolve(file), size: [W, H], slides: slides.length, fails: failsOut, warns: warnsOut, perSlide: slides };
 fs.writeFileSync(path.join(outDir, 'qc.json'), JSON.stringify(report, null, 2));
 console.log(`render_deck: ${slides.length} slides -> ${outDir}`);
-console.log(`FAIL ${fails.length}  WARN ${warns.length}`);
-fails.slice(0, 40).forEach((f) => console.log('  FAIL ' + f));
-warns.slice(0, 40).forEach((w) => console.log('  WARN ' + w));
-process.exit(fails.length ? 1 : 0);
+console.log(`FAIL ${failsOut.length}  WARN ${warnsOut.length}`);
+failsOut.slice(0, 40).forEach((f) => console.log('  FAIL ' + f));
+warnsOut.slice(0, 40).forEach((w) => console.log('  WARN ' + w));
+console.log('  NOTE this script does not check overlap between elements, colour contrast or invisible SVG strokes. Look at the pictures (contact_sheet.py) for those.');
+process.exit(failsOut.length ? 1 : 0);

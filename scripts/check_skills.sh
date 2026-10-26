@@ -38,7 +38,7 @@ done
 echo "---"; echo "$have installed, $miss missing, $unk unverified (of $((have+miss+unk)) in catalog.md)"
 if [ "$TOOLS" = 1 ]; then
   echo "--- tools"
-  for t in node python3 npx git ffmpeg soffice pdftoppm xelatex pdflatex; do
+  for t in node python3 npx git ffmpeg soffice pdftoppm xelatex pdflatex qlmanage; do
     if command -v "$t" >/dev/null 2>&1; then echo "ok       $t"; else echo "absent   $t"; fi
   done
   python3 - <<'PY'

@@ -131,13 +131,46 @@ def pptx_via_pillow(pptx, out):
     n = 0
     for k, slide in enumerate(prs.slides, 1):
         W, H = 1600, int(prs.slide_height * scale)
-        im = Image.new("RGB", (W, H), (255, 255, 255))
+        bg = (255, 255, 255)
+        for holder in (slide, slide.slide_layout, slide.slide_layout.slide_master):
+            try:
+                if holder.background.fill.type == 1:
+                    c = holder.background.fill.fore_color.rgb
+                    bg = (c[0], c[1], c[2])
+                    break
+            except Exception:
+                continue
+        im = Image.new("RGB", (W, H), bg)
         d = ImageDraw.Draw(im)
         for sp in slide.shapes:
             if sp.left is None or sp.width is None:
                 continue
             x, y = int(sp.left * scale), int(sp.top * scale)
             w, h = int(sp.width * scale), int(sp.height * scale)
+            if getattr(sp, "has_table", False) and sp.has_table:
+                tbl = sp.table
+                cy = y
+                for row in tbl.rows:
+                    rh = int(row.height * scale)
+                    cx = x
+                    for ci, cell in enumerate(row.cells):
+                        cw = int(tbl.columns[ci].width * scale)
+                        d.rectangle([cx, cy, cx + cw, cy + rh], outline=(150, 150, 150))
+                        try:
+                            if cell.fill.type == 1:
+                                c = cell.fill.fore_color.rgb
+                                d.rectangle([cx + 1, cy + 1, cx + cw - 1, cy + rh - 1], fill=(c[0], c[1], c[2]))
+                        except Exception:
+                            pass
+                        size = next((r.font.size.pt for p in cell.text_frame.paragraphs for r in p.runs if r.font.size), 14)
+                        fnt = font(size)
+                        ty = cy + 3
+                        for line in wrap(d, cell.text, fnt, max(cw - 10, 20)):
+                            d.text((cx + 5, ty), line, fill=(30, 30, 30), font=fnt)
+                            ty += int(size * 12700 * scale * 1.25)
+                        cx += cw
+                    cy += rh
+                continue
             if sp.shape_type == MSO_SHAPE_TYPE.PICTURE:
                 try:
                     import io
@@ -193,7 +226,12 @@ def main():
         if n is None:
             n, method = pptx_via_quicklook(src, out), "quicklook (fonts substituted, charts not drawn)"
         if not n:
-            n, method = pptx_via_pillow(src, out), "APPROXIMATE preview (no real renderer: shows layout only, not real fonts or effects)"
+            n, method = pptx_via_pillow(src, out), (
+                "APPROXIMATE preview. No real renderer worked (LibreOffice missing, QuickLook "
+                "unavailable or timed out). It draws text boxes, solid fills, solid slide backgrounds, "
+                "tables and pictures only. It does NOT draw charts, gradients, picture backgrounds, "
+                "shadows or real fonts, so a blank area may be a drawing gap, not a real fault. "
+                "Do not judge polish from it")
     else:
         print("render_static: give a .pptx or .pdf")
         return 2

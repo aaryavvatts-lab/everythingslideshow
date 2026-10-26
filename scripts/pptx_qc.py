@@ -18,7 +18,11 @@ Checks (FAIL = fix before delivery, WARN = fix or explain):
   WARN  empty placeholder shape
 
 The overflow test is a heuristic (average glyph width = 0.5 x font size), so treat a FAIL as
-"look at this slide in the render", not as proof. Run render_pptx.py to see the real pictures.
+"look at this slide in the render", not as proof. Run render_static.py to see pictures.
+
+Blind spots (it prints a NOTE when it meets one): table cell sizes, charts, SmartArt and grouped
+shapes are not measured for overflow; table text IS checked for placeholders, dashes and word count.
+Embedded fonts and animations are not checked. A clean report does not mean a good slide.
 Needs python-pptx (pip install python-pptx).
 """
 import json
@@ -43,7 +47,11 @@ def opt(argv, name, default=None, cast=str):
 
 
 def text_of(shape):
-    return shape.text_frame.text if shape.has_text_frame else ""
+    if shape.has_text_frame:
+        return shape.text_frame.text
+    if getattr(shape, "has_table", False) and shape.has_table:
+        return "\n".join(c.text for row in shape.table.rows for c in row.cells)
+    return ""
 
 
 def est_overflow(shape):
@@ -77,7 +85,7 @@ def est_overflow(shape):
 def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
-        return 2
+        return 0 if argv else 2
     path = argv[0]
     need_notes = "--notes" in argv
     no_dashes = "--no-dashes" in argv
@@ -86,6 +94,7 @@ def main(argv):
     prs = Presentation(path)
     sw, sh = prs.slide_width, prs.slide_height
     fails, warns, titles = [], [], {}
+    unmeasured = set()
     per = []
     for n, slide in enumerate(prs.slides, 1):
         words = 0
@@ -95,6 +104,19 @@ def main(argv):
             title = slide.shapes.title.text_frame.text.strip()
         for sp in slide.shapes:
             name = sp.name
+            if getattr(sp, "has_table", False) and sp.has_table:
+                unmeasured.add("tables")
+                for row in sp.table.rows:
+                    for c in row.cells:
+                        for p in c.text_frame.paragraphs:
+                            for r in p.runs:
+                                if r.font.size and r.text.strip():
+                                    pt = r.font.size.pt
+                                    smallest = pt if smallest is None else min(smallest, pt)
+            if getattr(sp, "has_chart", False) and sp.has_chart:
+                unmeasured.add("charts")
+            if sp.shape_type == MSO_SHAPE_TYPE.GROUP:
+                unmeasured.add("grouped shapes")
             if sp.left is not None and sp.width is not None:
                 if sp.left < -9525 or sp.top < -9525 or sp.left + sp.width > sw + 9525 or sp.top + sp.height > sh + 9525:
                     fails.append(f"slide {n}: '{name}' sticks out of the slide")
@@ -110,11 +132,12 @@ def main(argv):
                     sizes = [r.font.size.pt for p in sp.text_frame.paragraphs for r in p.runs if r.font.size]
                     if sizes and max(sizes) >= 28:
                         title = t.strip().split("\n")[0]
-                for p in sp.text_frame.paragraphs:
-                    for r in p.runs:
-                        if r.font.size and r.text.strip():
-                            pt = r.font.size.pt
-                            smallest = pt if smallest is None else min(smallest, pt)
+                if sp.has_text_frame:
+                    for p in sp.text_frame.paragraphs:
+                        for r in p.runs:
+                            if r.font.size and r.text.strip():
+                                pt = r.font.size.pt
+                                smallest = pt if smallest is None else min(smallest, pt)
                 ov = est_overflow(sp)
                 if ov and ov[0] > ov[1] * 1.25 and ov[0] - ov[1] > 0.3:
                     fails.append(f"slide {n}: '{name}' text probably overflows (needs ~{ov[0]:.1f}in, box {ov[1]:.1f}in)")
@@ -153,6 +176,8 @@ def main(argv):
         print("  FAIL " + x)
     for x in warns[:60]:
         print("  WARN " + x)
+    if unmeasured:
+        print("  NOTE overflow and size were not measured for: " + ", ".join(sorted(unmeasured)) + ". Look at those slides in the render.")
     return 1 if fails else 0
 
 

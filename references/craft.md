@@ -97,7 +97,8 @@ Sizes below are floors for projected slides. They assume a 13.33 x 7.5 in PPTX o
 ## Speaker notes
 
 - Conversational prose the speaker can glance at, not a copy of the slide. What to say, when to pause, what to click.
-- Put the timing at the top of the note and a cut order in the agenda notes ("if short on time, skip slides 7, 9, 11").
+- **Default layout** (use it unless a house skill defines another; a house skill always wins; `presentation-notes` can supply the wording of the talk track, this layout is the structure): `TIME:` minutes for this slide, `SAY:` the talk track in a few sentences, `DO:` clicks, pointing or pauses, `ASK:` a question for the room with a good answer when you want one, `IF SHORT:` what to cut.
+- Put the timing at the top of the note and a cut order in the agenda notes ("if short on time, skip slides 7, 9, 11"); with no agenda slide, in the first content slide's notes and in `notes.md`.
 - Put answers to likely audience questions on the slide where they are likely asked.
 - House skills may define a stricter script format (WAIT steps, answer keys). Follow them.
 

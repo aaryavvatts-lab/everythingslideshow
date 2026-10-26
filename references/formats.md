@@ -33,8 +33,9 @@ Pick the engine for the format that matters most, then export the others. Never 
 ## Recipes
 
 **HTML deck to PDF** (fixed 1920x1080 stage)
-- If the engine ships an exporter (`frontend-slides` has `scripts/export-pdf.sh`), use it.
-- Otherwise print each slide from headless Chrome:
+- Use this skill's tested exporter: `node scripts/to_pdf.mjs deck.html deck.pdf`. It forces a 16:9 page, shows every slide, plays no animations, reveals staggered elements and checks the page count equals the slide count. Text stays selectable. If it warns about the page count, pass `--slide-selector ".your-slide-class"`, or use `--images` (screenshots joined into a PDF; always works, text not selectable). Open the result and look at it once.
+- If the engine ships its own exporter (`frontend-slides` has `scripts/export-pdf.sh`), that works too.
+- By hand, from headless Chrome (the traps `to_pdf.mjs` handles for you: Chrome prints Letter portrait unless the CSS sets `@page { size: 1920px 1080px }`, and reveal elements stay hidden unless forced visible under `@media print`):
 ```bash
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --disable-gpu \
   --print-to-pdf=deck.pdf --no-pdf-header-footer --virtual-time-budget=4000 "file:///abs/path/deck.html"

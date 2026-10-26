@@ -122,8 +122,6 @@ def main(argv):
         warns.append("first slide has no clear hook or title")
     if last.strip(" .!") in ("thank you", "thanks", "questions", "q&a", "questions?", "the end"):
         warns.append("last slide is only a thank-you or Q&A label; end on what the audience should do or remember (keep thanks as a line on it)")
-    elif not re.search(r"next|join|ask|try|remember|takeaway|apply|\bdo\b|call|sign|vote|read|start|tonight|today|tomorrow|week", last):
-        warns.append("last slide does not look like a close or an ask; end on what the audience should do or remember")
     out = {"slides": len(slides), "duration": dur, "fails": fails, "warns": warns}
     if "--json" in argv:
         json.dump(out, open(argv[argv.index("--json") + 1], "w"), indent=2)
