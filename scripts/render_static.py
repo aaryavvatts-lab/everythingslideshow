@@ -179,12 +179,35 @@ def pptx_via_pillow(pptx, out):
                 except Exception:
                     d.rectangle([x, y, x + w, y + h], outline=(180, 0, 0))
                 continue
+            is_oval = False
+            try:
+                from pptx.enum.shapes import MSO_SHAPE
+                is_oval = sp.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE and sp.auto_shape_type == MSO_SHAPE.OVAL
+            except Exception:
+                pass
+            fill_rgb = None
             try:
                 if sp.fill.type == 1:
                     rgb = sp.fill.fore_color.rgb
-                    d.rectangle([x, y, x + w, y + h], fill=(rgb[0], rgb[1], rgb[2]))
+                    fill_rgb = (rgb[0], rgb[1], rgb[2])
             except Exception:
                 pass
+            line_rgb, line_w = None, 1
+            try:
+                if sp.line.fill.type == 1 and sp.line.width and sp.line.width > 0:
+                    lc = sp.line.color.rgb
+                    line_rgb = (lc[0], lc[1], lc[2])
+                    line_w = max(1, int(sp.line.width * scale))
+            except Exception:
+                pass
+            if fill_rgb or line_rgb:
+                if is_oval:
+                    d.ellipse([x, y, x + w, y + h], fill=fill_rgb, outline=line_rgb, width=line_w)
+                else:
+                    try:
+                        d.rounded_rectangle([x, y, x + w, y + h], radius=6, fill=fill_rgb, outline=line_rgb, width=line_w)
+                    except Exception:
+                        d.rectangle([x, y, x + w, y + h], fill=fill_rgb, outline=line_rgb, width=line_w)
             if sp.has_text_frame and sp.text_frame.text.strip():
                 cy = y + 4
                 for para in sp.text_frame.paragraphs:
